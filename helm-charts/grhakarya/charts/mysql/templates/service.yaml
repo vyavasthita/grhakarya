@@ -1,0 +1,20 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ .Values.service.name }}
+  namespace: {{ printf "%s-%s" .Values.global.namespace .Values.global.env }}
+  labels: {{- include "mysql.labels" . | nindent 4 }}
+spec:
+  selector:
+    {{- include "mysql.selectorLabels" . | nindent 4 }}
+  ports:
+    {{- if ne .Values.global.env "prod" }}
+    - name: {{ .Values.ports.main.name }}
+      port: {{ .Values.ports.main.port }}
+      targetPort: {{ .Values.ports.main.targetPort }}
+    {{- end }}
+    - name: {{ .Values.ports.admin.name }}
+      port: {{ .Values.ports.admin.port }}
+      targetPort: {{ .Values.ports.admin.targetPort }}
+      NodePort: {{ .Values.ports.admin.NodePort }}
+  type: {{ .Values.service.type }}

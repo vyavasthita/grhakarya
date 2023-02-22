@@ -1,0 +1,4 @@
+dns: db4free.net
+mysql_database: authdb
+dbinit.sql: |
+    CREATE DATABASE IF NOT EXISTS authprod;

@@ -1,0 +1,66 @@
+FROM diliplakshya/python-3.11.1-poetry-slim-bullseye as requirements-stage
+
+WORKDIR /tmp
+
+COPY pyproject.toml /tmp
+COPY poetry.lock /tmp
+
+RUN poetry export -f requirements.txt --only base --only dev --only docs --output requirements.txt --without-hashes
+
+FROM diliplakshya/python-3.11.1-poetry-slim-bullseye
+
+WORKDIR /app
+
+# set environment variables
+# Prevents Python from writing pyc files to disc (equivalent to python -B option)
+ENV PYTHONDONTWRITEBYTECODE 1
+
+# Prevents Python from buffering stdout and stderr (equivalent to python -u option)
+ENV PYTHONUNBUFFERED 1
+
+# Expose the port 5001 in which our application runs
+EXPOSE 5001
+
+ARG ENVIRONMENT
+ARG API_VERSION
+ARG API_TITLE
+ARG API_HOST
+ARG API_PORT
+ARG SPHINX_DIRECTORY
+
+ARG LOG_CONFIG
+ARG LOG_FILE_PATH
+ARG LOG_FILE_NAME
+
+ARG MYSQL_HOST
+ARG MYSQL_PORT
+ARG MYSQL_DATABASE
+ARG MYSQL_USER
+ARG MYSQL_ROOT_PASSWORD
+
+ARG SECRET_KEY
+ARG ALGORITHM
+ARG ACCESS_TOKEN_EXPIRE_MINUTES
+ARG HASHED_PASSWORD
+
+# Copy requirements from host, to docker container in /app 
+# COPY ./requirements.txt .
+# Install the dependencies
+# RUN pip install --no-cache-dir --upgrade -r requirements.txt
+COPY --from=requirements-stage /tmp/requirements.txt /app/requirements.txt
+RUN pip install --no-cache-dir --upgrade -r /app/requirements.txt
+
+# Copy everything from ./src directory to /app in the container
+COPY configuration /app/configuration
+COPY src /app/src
+COPY __init__.py .
+COPY pyproject.toml .
+COPY poetry.lock .
+
+COPY docs /app/docs
+
+RUN ["sphinx-apidoc", "-o", "docs/source", "src"]
+RUN ["sphinx-build", "docs/source", "docs/build"]
+
+# Run the application in the port 5001
+CMD ["python", "src/main.py"]

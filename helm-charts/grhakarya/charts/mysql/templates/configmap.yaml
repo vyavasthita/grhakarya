@@ -1,0 +1,7 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ .Values.configmap.name }}
+  namespace: {{ printf "%s-%s" .Values.global.namespace .Values.global.env }}
+data:
+{{ printf "environments/%s/configmap.yaml" .Values.global.env | .Files.Get | indent 2 }}

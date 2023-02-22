@@ -1,0 +1,132 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "auth.fullname" . }}
+  namespace: {{ printf "%s-%s" .Values.global.namespace .Values.global.env }}
+  labels:
+    {{- include "auth.labels" . | nindent 4 }}
+spec:
+  {{- if not .Values.autoscaling.enabled }}
+  replicas: {{ .Values.replicaCount }}
+  {{- end }}
+  selector:
+    matchLabels:
+      {{- include "auth.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      {{- with .Values.podAnnotations }}
+      annotations:
+        checksum/configmap1: {{ printf "environments/%s/configmap.yaml" .Values.global.env | .Files.Get | sha256sum }}
+        checksum/secrets: {{ printf "environments/%s/secret.yaml" .Values.global.env | .Files.Get | sha256sum }}
+      {{- end }}
+      labels:
+        {{- include "auth.selectorLabels" . | nindent 8 }}
+    spec:
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      securityContext:
+        {{- toYaml .Values.podSecurityContext | nindent 8 }}
+      containers:
+        - name: {{ .Values.deployment.containers.dev.name }}
+          image: {{ .Values.deployment.containers.dev.image }}
+          imagePullPolicy: {{ .Values.deployment.containers.dev.imagePullPolicy }}
+          ports:
+            - containerPort: {{ .Values.ports.dev.containerPort }}
+          env:
+            - name: MYSQL_USER
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.secret.name }}
+                  key: mysql_user
+            - name: MYSQL_ROOT_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.secret.name }}
+                  key: mysql_root_password
+            - name: MYSQL_HOST
+              valueFrom:
+                configMapKeyRef:
+                  name: {{ .Values.configmap.name }}
+                  key: mysql_host
+            - name: MYSQL_DATABASE
+              valueFrom:
+                configMapKeyRef:
+                  name: {{ .Values.configmap.name }}
+                  key: mysql_database
+            - name: MYSQL_PORT
+              valueFrom:
+                configMapKeyRef:
+                  name: {{ .Values.configmap.name }}
+                  key: mysql_port
+            - name: API_VERSION
+              valueFrom:
+                configMapKeyRef:
+                  name: {{ .Values.configmap.name }}
+                  key: api_version
+
+            - name: API_TITLE
+              valueFrom:
+                configMapKeyRef:
+                  name: {{ .Values.configmap.name }}
+                  key: api_title
+
+            - name: API_HOST
+              valueFrom:
+                configMapKeyRef:
+                  name: {{ .Values.configmap.name }}
+                  key: api_host
+
+            - name: API_PORT
+              valueFrom:
+                configMapKeyRef:
+                  name: {{ .Values.configmap.name }}
+                  key: api_port
+            - name: LOG_CONFIG
+              valueFrom:
+                configMapKeyRef:
+                  name: {{ .Values.configmap.name }}
+                  key: log_config
+
+            - name: LOG_FILE_PATH
+              valueFrom:
+                configMapKeyRef:
+                  name: {{ .Values.configmap.name }}
+                  key: log_file_path
+
+            - name: LOG_FILE_NAME
+              valueFrom:
+                configMapKeyRef:
+                  name: {{ .Values.configmap.name }}
+                  key: log_file_name
+
+            - name: SECRET_KEY
+              valueFrom:
+                configMapKeyRef:
+                  name: {{ .Values.configmap.name }}
+                  key: secret_key
+
+            - name: ALGORITHM
+              valueFrom:
+                configMapKeyRef:
+                  name: {{ .Values.configmap.name }}
+                  key: algorithm
+
+            - name: ACCESS_TOKEN_EXPIRY_MINUTES
+              valueFrom:
+                configMapKeyRef:
+                  name: {{ .Values.configmap.name }}
+                  key: access_token_expire_minutes
+
+            - name: SPHINX_DIRECTORY
+              valueFrom:
+                configMapKeyRef:
+                  name: {{ .Values.configmap.name }}
+                  key: sphinx_directory
+
+          volumeMounts:
+            - name: {{ .Values.deployment.containers.volumes.data.name }}
+              mountPath: {{ .Values.deployment.containers.volumes.data.mountPath }}
+      volumes:
+        - name: {{ .Values.deployment.containers.volumes.data.name }}

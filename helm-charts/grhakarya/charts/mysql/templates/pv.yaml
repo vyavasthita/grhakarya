@@ -1,0 +1,15 @@
+kind: PersistentVolume
+apiVersion: v1
+metadata:
+  name: {{ .Values.PersistentVolume.Volume.name }}
+  namespace: {{ printf "%s-%s" .Values.global.namespace .Values.global.env }}
+  labels:
+    {{- include "grhakarya.labels" . | nindent 4 }}
+spec:
+  storageClassName: manual
+  capacity:
+    storage: {{ .Values.PersistentVolume.Volume.storage }}
+  accessModes: 
+    - {{ .Values.PersistentVolume.Volume.accessModes }}
+  hostPath:
+    path: {{ .Values.PersistentVolume.Volume.hostPath.path }}

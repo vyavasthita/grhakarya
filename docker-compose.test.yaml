@@ -1,0 +1,85 @@
+version: '3.8'
+services:
+  grahakarya-auth-mysql-db-test:
+    image: mysql:8.0.29
+    container_name: grahakarya-auth-mysql-db-test
+    ports:
+      - "3309:3306"
+    command: --init-file /data/application/dbinit.sql
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
+      MYSQL_DATABASE: ${MYSQL_DATABASE}
+    healthcheck:
+        test: ["CMD", "mysqladmin" ,"ping", "-h", "localhost"]
+        timeout: 3s
+        retries: 10
+    networks:
+      - grahakarya-auth-mysql-connection-test
+    volumes:
+      - grahakarya-auth-mysql-data-test:/var/lib/mysql
+      - grahakarya-auth-mysql-init-test:/data/application
+
+  grahakarya-auth-mysql-db-admin-test:    
+    image: phpmyadmin:latest
+    container_name: grahakarya-auth-mysql-db-admin-test
+    environment:
+      PMA_HOST: grahakarya-auth-mysql-db-test
+      PMA_USER: ${MYSQL_USER}
+      PMA_PASSWORD: ${MYSQL_ROOT_PASSWORD}
+    ports:      
+      - "8080:80"
+    networks: 
+      - grahakarya-auth-mysql-connection-test
+    depends_on:
+      grahakarya-auth-mysql-db-test:
+        condition: service_healthy
+
+  grahakarya-auth-test:
+    build: 
+      context: ./microservices/auth
+      dockerfile: Dockerfile.test
+    image: diliplakshya/grahakarya-auth-test
+    container_name: grhakarya-auth-test
+    environment:
+      BUILD_ENV: ${BUILD_ENV}
+      API_VERSION: ${API_VERSION}
+      API_TITLE: ${API_TITLE}
+      API_HOST: ${API_HOST}
+      API_PORT: ${API_PORT}
+      SPHINX_DIRECTORY: ${SPHINX_DIRECTORY}
+      LOG_CONFIG: ${LOG_CONFIG}
+      LOG_FILE_PATH: ${LOG_FILE_PATH}
+      LOG_FILE_NAME: ${LOG_FILE_NAME}
+      SECRET_KEY: ${SECRET_KEY}
+      ALGORITHM: ${ALGORITHM}
+      ACCESS_TOKEN_EXPIRE_MINUTES: ${ACCESS_TOKEN_EXPIRE_MINUTES}
+      MYSQL_HOST: ${MYSQL_HOST}
+      MYSQL_PORT: ${MYSQL_PORT}
+      MYSQL_DATABASE: ${MYSQL_DATABASE}
+      MYSQL_USER: ${MYSQL_USER}
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
+    ports:
+      - 6001:6001
+    networks: 
+      - grahakarya-auth-mysql-connection-test
+    depends_on:
+      grahakarya-auth-mysql-db-test:
+        condition: service_healthy
+
+volumes:
+  grahakarya-auth-mysql-data-test:
+    driver: local
+    driver_opts:
+      type: 'none'
+      o: 'bind'
+      device: '${PWD}/database/mysql/data/db/test'
+
+  grahakarya-auth-mysql-init-test:
+    driver: local
+    driver_opts:
+      type: 'none'
+      o: 'bind'
+      device: '${PWD}/database/mysql/data/sql/test'
+
+networks:
+  grahakarya-auth-mysql-connection-test:

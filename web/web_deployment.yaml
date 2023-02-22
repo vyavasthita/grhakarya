@@ -1,0 +1,42 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: web-deployment
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: web
+  template:
+    metadata:
+      labels:
+        app: web
+    spec:
+      containers:
+        - name: grahakarya-web
+          image: diliplakshya/grahakarya-web
+          ports:
+            - containerPort: 3000
+          livenessProbe:
+            httpGet:
+              path: /
+              port: 3000
+            periodSeconds: 10
+            initialDelaySeconds: 5
+          imagePullPolicy: Always
+
+          env:
+            - name: FOLDER
+              valueFrom:
+                configMapKeyRef:
+                  name: milk-data-store-env
+                  key: folder
+
+          volumeMounts:
+            - mountPath: /app/data
+              name: web-volume
+
+      volumes:
+        - name: web-volume
+          persistentVolumeClaim:
+            claimName: host-pvc

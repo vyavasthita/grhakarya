@@ -1,0 +1,89 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "mysql.fullname" . }}
+  namespace: {{ printf "%s-%s" .Values.global.namespace .Values.global.env }}
+  labels:
+    {{- include "mysql.labels" . | nindent 4 }}
+spec:
+  {{- if not .Values.autoscaling.enabled }}
+  replicas: {{ .Values.replicaCount }}
+  {{- end }}
+  selector:
+    matchLabels:
+      {{- include "mysql.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      {{- with .Values.podAnnotations }}
+      annotations:
+        checksum/configmap1: {{ printf "environments/%s/configmap.yaml" .Values.global.env | .Files.Get | sha256sum }}
+        checksum/secrets: {{ printf "environments/%s/secret.yaml" .Values.global.env | .Files.Get | sha256sum }}
+      {{- end }}
+      labels:
+        {{- include "mysql.selectorLabels" . | nindent 8 }}
+    spec:
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      securityContext:
+        {{- toYaml .Values.podSecurityContext | nindent 8 }}
+      containers:
+        {{- if ne .Values.global.env "prod" }}
+        - name: {{ .Values.deployment.containers.main.name }}
+          image: {{ .Values.deployment.containers.main.image }}
+          imagePullPolicy: {{ .Values.deployment.containers.main.imagePullPolicy }}
+          ports:
+            - containerPort: {{ .Values.ports.main.containerPort }}
+          env:
+            - name: MYSQL_ROOT_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.secret.name }}
+                  key: mysql_root_password
+          livenessProbe:
+            exec:
+              command:
+                - mysqladmin
+                - ping
+                - -h
+                - localhost
+            initialDelaySeconds: 5
+            periodSeconds: 5
+          volumeMounts:
+            - name: {{ .Values.deployment.containers.volumes.data.name }}
+              mountPath: {{ .Values.deployment.containers.volumes.data.mountPath }}
+              subPath: {{ .Values.deployment.containers.volumes.data.subPath }}
+            - name: {{ .Values.deployment.containers.volumes.init.name }}
+              mountPath: {{ .Values.deployment.containers.volumes.init.mountPath }}
+        {{- end }}
+        - name: {{ .Values.deployment.containers.admin.name }}
+          image: {{ .Values.deployment.containers.admin.image }}
+          imagePullPolicy: {{ .Values.deployment.containers.admin.imagePullPolicy }}
+          ports:
+            - containerPort: {{ .Values.ports.admin.containerPort }}
+          env:
+            - name: PMA_HOST
+              valueFrom:
+                configMapKeyRef:
+                  name: {{ .Values.configmap.name }}
+                  key: dns
+            - name: PMA_USER
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.secret.name }}
+                  key: mysql_user
+            - name: PMA_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.secret.name }}
+                  key: mysql_root_password
+      {{- if ne .Values.global.env "prod" }}
+      volumes:
+        - name: {{ .Values.deployment.containers.volumes.data.name }}
+          persistentVolumeClaim:
+            claimName: {{ .Values.PersistentVolume.VolumeClaim.name }}
+        - name: {{ .Values.deployment.containers.volumes.init.name }}
+          configmap:
+            name: {{- .Values.configmap.name }}
+      {{- end }}

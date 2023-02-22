@@ -1,0 +1,4 @@
+dns: 127.0.0.1
+mysql_database: authtest
+dbinit.sql: |
+    CREATE DATABASE IF NOT EXISTS authtest;
